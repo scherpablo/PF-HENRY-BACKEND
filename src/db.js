@@ -33,6 +33,7 @@ const sequelize = new Sequelize(isProduction ? supabaseDb : localDb, {
   dialectOptions: {
     ssl: isProduction ? { require: true, rejectUnauthorized: false } : false,
   },
+  dialectModule: pg,
   logging: false,
 });
 
