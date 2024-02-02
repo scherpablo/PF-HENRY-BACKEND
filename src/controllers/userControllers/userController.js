@@ -1,11 +1,11 @@
-
 const bcrypt = require("bcrypt");
 const { User, UserRole, UserAddress } = require("../../db.js");
 const {
   sendConfirmationEmail,
-} = require("../../utils/sendConfirmationEmail.js");
+} = require("../../utils/emailTemplates.js");
+const { tokenSign } = require("../../jwt/tokenGenerator.js");
 
-const getAllUsers    = async () => {
+const getAllUsers = async () => {
   const user = await User.findAll();
   if (user.length === 0) {
     return {
@@ -30,9 +30,22 @@ const getUserByDni = async (dni) => {
   }
   return user;
 };
+const getUserByEmail = async (email) => {
+  const user = await User.findOne({
+    where: { email: email },
+    include: [{ model: UserRole, as: "role" }, UserAddress],
+  });
+
+  if (!user) {
+    return {
+      error: true,
+      response: `Users not found`,
+    };
+  }
+  return user;
+};
 
 const getUserById = async (id) => {
-
   const user = await User.findByPk(id, {
     include: [UserAddress],
   });
@@ -44,7 +57,7 @@ const getUserById = async (id) => {
   }
   return user;
 };
-const postUser       = async (
+const postUser = async (
   name,
   surname,
   birthdate,
@@ -67,9 +80,7 @@ const postUser       = async (
     image,
     isActive: true,
   });
-
   // UserCredentials
-
   let { username, password } = userCredentials;
   const newUserCredentials = await newUser.createUserCredential({
     username,
@@ -77,7 +88,6 @@ const postUser       = async (
   });
   newUserCredentials.id = newUser.id;
   await newUserCredentials.save();
-
   // UserAddress
   const {
     country = "",
@@ -100,7 +110,6 @@ const postUser       = async (
   await newUserAddress.save();
 
   // UserRoles
-
   const role_name = roles;
   const [userRole] = await UserRole.findOrCreate({
     where: { role_name },
@@ -115,7 +124,7 @@ const postUser       = async (
 
   return completeUser;
 };
-const editUserById   = async (
+const editUserById = async (
   id,
   name,
   surname,
@@ -125,7 +134,8 @@ const editUserById   = async (
   telephone,
   image,
   userAddress,
-  role
+  role,
+  communication_preference
 ) => {
   const user = await User.findByPk(id);
   if (!user)
@@ -136,11 +146,11 @@ const editUserById   = async (
   const isEmailDifferent = email !== user.email;
 
   if (email !== "" && isEmailDifferent) {
+    const confirmationEmailToken = tokenSign({userID : user.id}, '2d')
     await sendConfirmationEmail(
       process.env.EMAIL_MAILER,
       email,
-      user.id,
-      process.env.JWT_SECRET_KEY,
+      confirmationEmailToken,
       process.env.API_URL
     );
     await user.update({ isVerified: false });
@@ -153,6 +163,8 @@ const editUserById   = async (
     email: email || user.email,
     telephone: telephone || user.telephone,
     image: image || user.image,
+    communication_preference:
+      communication_preference || user.communication_preference,
   });
 
   // ADDRESS UPDATE
@@ -169,6 +181,7 @@ const editUserById   = async (
     number: number || _userAddress.number,
     zipCode: zipCode || _userAddress.zipCode,
   });
+
   // ROL Update
   const role_name = role;
 
@@ -185,10 +198,27 @@ const editUserById   = async (
   return updatedUser;
 };
 
+//LOGICAL DELETE
+const logicalDelete = async (id) => {
+  if (!id) {
+    return { error: true, response: "El id es requerido" };
+  }
+  const user = await User.findByPk(id);
+  if (!user) {
+    return { error: true, response: "Usuario no encontrado" };
+  }
+  await user.update({ isDeleted: !user.isDeleted });
+  return `Usuario ${user.name} ${user.surname} ${
+    user.isDeleted ? "Desactivado" : "Activado"
+  } `;
+};
+
 module.exports = {
   getAllUsers,
   getUserById,
   getUserByDni,
+  getUserByEmail,
   postUser,
   editUserById,
+  logicalDelete
 };

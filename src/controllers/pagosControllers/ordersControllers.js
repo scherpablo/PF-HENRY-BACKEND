@@ -6,6 +6,8 @@ const {
   OrderProduct,
   User,
   ProductImage,
+  ProductCategory,
+  ProductBrand,
 } = require("../../db");
 const { v4: uuidv4 } = require("uuid");
 const { mercadoPago } = require("./mercadoPagoContoller");
@@ -35,13 +37,16 @@ async function createOrder(
         },
       ],
     });
-
     if (!cart) {
-      throw new Error("El usuario no tiene un carrito");
+      return "El usuario no tiene un carrito";
     }
+    const user = await User.findByPk(userId);
+    if (!user) {
+      return "Usuario no encontrado";
+    }
+    const userEmail = user.email;
 
     const idOrder = uuidv4();
-    console.log(idOrder);
     const preferenceResult = await mercadoPago(array, idOrder);
 
     const preferenceId = preferenceResult.id;
@@ -49,6 +54,7 @@ async function createOrder(
     const order = await Order.create({
       id: idOrder,
       UserId: userId,
+      // userEmail,
       totalAmount,
       shippingAddress: shippingAddress ?? null,
       paymentMethod,
@@ -57,33 +63,29 @@ async function createOrder(
       shippingDetails: shippingDetails ?? null,
       customerNotes: customerNotes ?? null,
       preferenceId,
+      purchaseDate: new Date(),
+    });
+    await Promise.all(
+      cart.Products.map(async (product) => {
+        return order.addProduct(product, {
+          through: { quantity: product.ProductCart.quantity },
+        });
+      })
+    );
+
+    const newOrder = await Order.findOne({
+      where: { id: idOrder },
+      include: [
+        {
+          model: Product,
+          through: {
+            model: OrderProduct,
+          },
+        },
+      ],
     });
 
-    // Agregar productos a la orden y la tabla intermedia OrderProduct
-    for (const product of cart.Products) {
-      await order.addProduct(product, {
-        through: { quantity: product.ProductCart.quantity },
-      });
-    }
-
-    // Eliminar el carrito después de crear la orden
-    // await cart.destroy();
-    for (const product of cart.Products) {
-      await cart.removeProduct(product);
-    }
-    // Retornar la orden con relaciones incluidas
-    // return Order.findOne({
-    //   where: { id: idOrder },
-    //   include: [
-    //     {
-    //       model: Product,
-    //       through: {
-    //         model: OrderProduct,
-    //       },
-    //     },
-    //   ],
-    // });
-    return order;
+    return newOrder;
   } catch (error) {
     console.error(error);
     throw error;
@@ -106,7 +108,6 @@ const getAllOrders = async () => {
 
     return allCarts;
   } catch (error) {
-    console.log(error.message);
     throw new Error({ error: error.message });
   }
 };
@@ -148,39 +149,59 @@ const deleteOrderById = async (id) => {
 
 const getMisCompras = async (userId) => {
   try {
-    const user = await User.findAll({
-      where: { id: userId },
+    const userOrders = await Order.findAll({
+      where: { UserId: userId },
+      attributes: ["status", "cartTotal", "paymentMethod", "purchaseDate"],
       include: [
         {
-          model: Order,
+          model: Product,
+          attributes: ["id", "name", "price"],
+          through: {
+            model: OrderProduct,
+            attributes: ["quantity"],
+          },
           include: [
             {
-              model: Product,
-              attributes: ["id", "name", "price"],
-              through: {
-                model: OrderProduct,
-                attributes: ["quantity"],
-              },
-              include: [
-                {
-                  model: ProductImage,
-                  attributes: ["address"],
-                },
-              ],
+              model: ProductImage,
+              attributes: ["address"],
+            },
+            {
+              model: ProductCategory,
+              attributes: ["name"],
+            },
+            {
+              model: ProductBrand,
+              attributes: ["name"],
             },
           ],
         },
       ],
     });
 
-    if (!user) {
-      throw new Error("User not found");
+    if (!userOrders) {
+      console.log("User not found or has no orders");
     }
 
-    return user;
+    return userOrders;
   } catch (error) {
-    throw new Error(error);
+    throw new Error(error.message);
   }
+};
+
+const deleteOrdersController = async (req, res) => {
+  const orders = await Order.findAll({
+    include: [
+      {
+        model: Product,
+        attributes: ["id", "name"],
+        through: {
+          model: OrderProduct,
+          attributes: ["quantity"],
+        },
+      },
+    ],
+  });
+  Promise.all(orders.map((order) => order.destroy()));
 };
 
 //LUEGO DE QUE TERMINEMMOS MERCADO PAGO ESTA VA A SER LA FUNCION QUE SE VA A USAR
@@ -227,4 +248,5 @@ module.exports = {
   updateOrder,
   deleteOrderById,
   getMisCompras,
+  deleteOrdersController,
 };

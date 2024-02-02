@@ -11,15 +11,11 @@ const googleAuthCallback = async (req, res) => {
     const responseLogin = await loginUser(
       await User.findOne({ where: { email: authEmail } })
     );
-
     if (!responseLogin) {
       return res
         .status(401)
         .json({ response: "No existe un usuario registrado con ese email" });
     }
-    
-    req.session.token = responseLogin.tokenSession
-   
     return res.status(200).send(`<!DOCTYPE html>
     <html lang="en">
       <body>

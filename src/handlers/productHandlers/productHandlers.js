@@ -1,3 +1,5 @@
+const pluralize = require("pluralize");
+
 const {
   getAllProducts,
   postProduct,
@@ -7,6 +9,7 @@ const {
   getProductById,
   searchByName,
   logicalDelete,
+  addToCarousel,
 } = require("../../controllers/productControllers/productController");
 
 //Post Product
@@ -22,6 +25,8 @@ const postProductHandler = async (req, res) => {
     images,
     brandName,
     soldCount,
+    carousel,
+    banner,
   } = req.body;
 
   try {
@@ -48,6 +53,8 @@ const postProductHandler = async (req, res) => {
       images,
       brandName,
       soldCount,
+      carousel,
+      banner,
     });
 
     res
@@ -125,6 +132,22 @@ const logicalDeleteHandler = async (req, res) => {
   }
 };
 
+//ADD TO CAROUSEL
+const addToCarouselHandler = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await addToCarousel(id);
+    if (result.error) {
+      res.status(400).json({ error: result.response });
+    }
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+
+
 //GET BY ID
 const getProductByIdHandler = async (req, res) => {
   const { id } = req.params;
@@ -144,16 +167,29 @@ const getProductByIdHandler = async (req, res) => {
 
 //SEARCH BAR
 const searchByNameHandler = async (req, res) => {
-  const name = req.query.name;
+  let name = req.query.name;
+  name = pluralize.singular(name.toLowerCase());
   try {
     const results = await searchByName(name);
     if (results.length > 0) {
       res.status(200).json(results);
     } else {
-      res
-        .status(404)
-        .json({ error: `No se encontraron resultados para ${name}` });
-    }
+    //   res
+    //     .status(404)
+    //     .json({ error: `No se encontraron resultados para ${name}` });
+    // }
+    res.status(200).json([]);
+  }
+  } catch (error) {
+    res.status(400).json({ error: error.message });
+  }
+};
+
+//GET PRODUCTS CAROUSEL
+const getProductsCarouselHandler = async (req, res) => {
+  try {
+    const products = await productCarousel();
+    res.status(200).json(products);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
@@ -164,8 +200,10 @@ module.exports = {
   getProductsHandler,
   updateProductHandler,
   logicalDeleteHandler,
+  addToCarouselHandler,
   deleteProductHandler,
   getProductByIdHandler,
   searchByNameHandler,
   postProductSeveralHandler,
+  getProductsCarouselHandler,
 };

@@ -1,4 +1,4 @@
-const { Op } = require("sequelize");
+const { Op, INTEGER } = require("sequelize");
 const {
   Product,
   ProductBrand,
@@ -39,6 +39,8 @@ const postProduct = async ({
   images,
   brandName,
   soldCount,
+  carousel,
+  banner,
 }) => {
   const transaction = await conn.transaction();
 
@@ -50,6 +52,8 @@ const postProduct = async ({
         price,
         warranty,
         soldCount,
+        carousel,
+        banner,
         is_deleted,
       },
       { transaction }
@@ -190,14 +194,15 @@ const updateProduct = async (productId, updateData) => {
     return { error: true, response: "Producto no encontrado" };
   }
 
-  if (updateData.ProductStock) {
+  //Update stock
+  if (updateData.stock) {
     await productToUpdate.ProductStock.update({
-      amount: updateData.ProductStock,
+      amount: updateData.stock,
     });
   }
 
   //Update brand
-  if (updateData.ProductBrand) {
+  if (updateData.brandName) {
     await Promise.all(
       productToUpdate.ProductBrands.map(async (brand) => {
         return productToUpdate.removeProductBrand(brand);
@@ -205,7 +210,7 @@ const updateProduct = async (productId, updateData) => {
     );
 
     const [brand, createdBrand] = await ProductBrand.findOrCreate({
-      where: { name: updateData.ProductBrand },
+      where: { name: updateData.brandName },
     });
 
     if (brand) {
@@ -215,6 +220,29 @@ const updateProduct = async (productId, updateData) => {
     } else {
       await productToUpdate.addProductBrand(createdBrand, {
         through: "ProductProductBrand",
+      });
+    }
+  }
+
+  //Update category
+  if (updateData.categoryName) {
+    await Promise.all(
+      productToUpdate.ProductCategories.map(async (category) => {
+        return productToUpdate.removeProductCategory(category);
+      })
+    );
+
+    const [category, createdCategory] = await ProductCategory.findOrCreate({
+      where: { name: updateData.categoryName },
+    });
+
+    if (category) {
+      await productToUpdate.addProductCategory(category, {
+        through: "ProductProductCategory",
+      });
+    } else {
+      await productToUpdate.addProductCategory(createdCategory, {
+        through: "ProductProductCategory",
       });
     }
   }
@@ -239,28 +267,9 @@ const updateProduct = async (productId, updateData) => {
       }
     });
   }
-
-  if (updateData.ProductCategory) {
-    await Promise.all(
-      productToUpdate.ProductCategories.map(async (category) => {
-        return productToUpdate.removeProductCategory(category);
-      })
-    );
-    await Promise.all(
-      updateData.ProductCategory.map(async (category) => {
-        console.log(category);
-        const [existingCategory, createdCategory] =
-          await ProductCategory.findOrCreate({
-            where: { name: category },
-          });
-
-        if (existingCategory) {
-          return productToUpdate.addProductCategory(existingCategory);
-        } else {
-          return productToUpdate.addProductCategory(createdCategory);
-        }
-      })
-    );
+ 
+  if (typeof updateData?.price !== "number") {
+    updateData.price = Number(updateData.price);
   }
 
   await productToUpdate.update(updateData);
@@ -273,6 +282,7 @@ const updateProduct = async (productId, updateData) => {
       { model: ProductStock, attributes: ["amount"] },
     ],
   });
+
   return updatedProduct;
 };
 
@@ -297,11 +307,26 @@ const logicalDelete = async (id) => {
     return { error: true, response: "Producto no encontrado" };
   }
   await product.update({ is_deleted: !product.is_deleted });
-
-  return `${product.name} ${
-    product.is_deleted ? " activado" : " desactivado"
+  return `Producto ${product.name} ${
+    product.is_deleted ? "Desactivado" : "Activado"
   } `;
 };
+
+//ADD TO CAROUSEL
+const addToCarousel = async (id) => {
+  if (!id) {
+    return { error: true, response: "El id es requerido" };
+  }
+  const product = await Product.findByPk(id);
+  if (!product) {
+    return { error: true, response: "Producto no encontrado" };
+  }
+  await product.update({ carousel: !product.carousel });
+  return `Producto ${product.name} ${
+    product.carousel ? "Agregado al Carousel" : "Eliminado del Carousel"
+  } `;
+};
+
 
 const getProductById = async (id) => {
   try {
@@ -330,11 +355,16 @@ const searchByName = async (name) => {
               [Op.iLike]: `%${name}%`,
             },
           },
+          // {
+          //   description: {
+          //     [Op.iLike]: `%${name}%`,
+          //   },
+          // },
           {
-            description: {
+            '$ProductCategories.name$': {
               [Op.iLike]: `%${name}%`,
-            },
-          },
+            }
+          }
         ],
       },
       include: [
@@ -344,15 +374,32 @@ const searchByName = async (name) => {
         { model: ProductStock, attributes: ["amount"] },
       ],
     });
-
-    return products;
+    return products.length > 0 ? products : [];
   } catch (error) {
     throw new Error(`Error en la búsqueda: ${error.message}`);
   }
 };
 
+const productCarousel = async () => {
+  try {
+    const allProducts = await Product.findAll({
+      where: { carousel: true },
+      include: [
+        { model: ProductBrand, attributes: ["name"] },
+        { model: ProductCategory, attributes: ["name"] },
+        { model: ProductImage, attributes: ["address"] },
+        { model: ProductStock, attributes: ["amount"] },
+      ],
+    });
+    return allProducts;
+  } catch (error) {
+    console.log(error.message);
+  }
+};
+
 module.exports = {
   logicalDelete,
+  addToCarousel,
   postProduct,
   postProductSeveral,
   getAllProducts,
@@ -360,4 +407,5 @@ module.exports = {
   deleteProduct,
   getProductById,
   searchByName,
+  productCarousel,
 };

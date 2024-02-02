@@ -2,6 +2,7 @@ const {
   createOrder,
   getAllOrders,
   deleteOrderById,
+  deleteOrdersController,
   getMisCompras,
 } = require("../../controllers/pagosControllers/ordersControllers");
 
@@ -65,9 +66,20 @@ const misComprasHandler = async (req, res) => {
   try {
     const { id } = req.params;
     const misCompras = await getMisCompras(id);
-    if (misCompras) {
+    if (misCompras.length > 0) {
       res.status(200).json(misCompras);
+    } else {
+      res.status(200).json([]);
     }
+  } catch (error) {
+    throw new Error(error);
+  }
+};
+
+const deleteOrdersHandler = async (req, res) => {
+  try {
+    await deleteOrdersController();
+    res.status(200).json("Todas las ordenes han sido eliminadas");
   } catch (error) {
     throw new Error(error);
   }
@@ -77,5 +89,6 @@ module.exports = {
   createOrderHandler,
   getAllOrdersHandler,
   misComprasHandler,
+  deleteOrdersHandler,
   deleteOrderHandler,
 };

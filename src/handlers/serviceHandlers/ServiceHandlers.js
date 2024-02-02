@@ -6,8 +6,13 @@ const {
   getServiceByClientController,
   getServiceByModelController,
   getFilterServiceController,
+  DeleteServiceController,
+  GetUndeletedServicesController,
+  updateServiceController,
+  logicalDeleteServiceController,
 } = require("../../controllers/serviceControllers/serviceController");
 
+//HANDLE ADD SERVICE
 const addServiceHandler = async (req, res) => {
   const {
     product_model,
@@ -39,6 +44,7 @@ const addServiceHandler = async (req, res) => {
   }
 };
 
+//HANDLE UPDATE STATUS SERVICE
 const updateServiceStatus = async (req, res) => {
   const { id } = req.params;
   const { field, value } = req.body;
@@ -59,13 +65,18 @@ const updateServiceStatus = async (req, res) => {
     return res.status(500).json({ error: error.message });
   }
 };
+
+//HANDLE GET ALL SERVICES
 const getAllServices = async (req, res) => {
   const { model } = req.query;
   if (!model) {
     try {
       const servicios = await getAllServicesController();
-      if (servicios.error) {
-        return res.status(404).json(servicios.response);
+
+      if (servicios.length === 0) {
+        return res
+          .status(200)
+          .json({ message: "No hay datos cargados en la DB" });
       }
       return res.status(200).json(servicios);
     } catch (error) {
@@ -79,11 +90,13 @@ const getAllServices = async (req, res) => {
       }
       return res.status(200).json(servicios);
     } catch (error) {
+      console.log("error", error);
       res.status(500).json({ error: error.message });
     }
   }
 };
 
+//HANDLE GET SERVICE BY ID
 const getServiceById = async (req, res) => {
   const { id } = req.params;
   try {
@@ -109,7 +122,7 @@ const getServiceByClientid = async (req, res) => {
     res.status(500).json({ error: error.message });
   }
 };
-
+//HANDLE FILTER SERVICE
 const getFilterService = async (req, res) => {
   const { status, user, technician } = req.query;
   try {
@@ -123,6 +136,81 @@ const getFilterService = async (req, res) => {
   }
 };
 
+//HANDLE UNDELETE SERVICE
+const getUndeletedService = async (req, res) => {
+  try {
+    const services = await GetUndeletedServicesController();
+    if (services.error) {
+      return res.status(404).json(services.response);
+    }
+    res.status(200).json(services);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+//HANDLE DELETE SERVICE
+const deleteService = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const service = await DeleteServiceController(id);
+    if (service.error) {
+      return res.status(404).json(service.response);
+    }
+    res.status(200).json(service);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
+//HANDLE UPDATE SERVICE
+const updateService = async (req, res) => {
+  const { id } = req.params;
+  const {
+    product_model,
+    user_diagnosis,
+    technicianId,
+    budget,
+    confirm_repair,
+    status,
+    technical_diagnosis,
+    final_diagnosis,
+  } = req.body;
+  try {
+    const updatedService = await updateServiceController(
+      id,
+      product_model,
+      user_diagnosis,
+      technicianId,
+      budget,
+      confirm_repair,
+      status,
+      technical_diagnosis,
+      final_diagnosis
+    );
+    if (updatedService.error) {
+      return res.status(404).json(updatedService.response);
+    }
+    res.status(200).json(updatedService);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
+};
+
+//HANDLE LOGICAL DELETE SERVICE
+const logicalDelete = async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await logicalDeleteServiceController(id);
+    if (result.error) {
+      res.status(400).json({ error: result.response });
+    }
+    res.status(200).json(result);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+};
+
 module.exports = {
   addServiceHandler,
   updateServiceStatus,
@@ -130,4 +218,8 @@ module.exports = {
   getServiceById,
   getServiceByClientid,
   getFilterService,
+  getUndeletedService,
+  deleteService,
+  updateService,
+  logicalDelete,
 };

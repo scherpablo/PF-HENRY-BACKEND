@@ -7,18 +7,18 @@ const {
 } = require("../../controllers/accountControllers/authController");
 
 const verifyCallback = async (accessToken, refreshToken, profile, done) => {
+
   const email = profile.emails.find((email) => email.verified === true);
+ 
   const { given_name, family_name, picture, sub } = profile._json;
-
   const response = await User.findOne({ where: { email: email.value } });
-
   // IF EXITS IN DATABASE
   if (response) {
-   return done(null, profile._json);
- 
+    return done(null, profile._json);
   } else {
+    
     // SAVE IN DATABASE
-    await registerUser({
+    const user = await registerUser({
       name: given_name,
       surname: family_name,
       birthdate: null,
@@ -28,12 +28,16 @@ const verifyCallback = async (accessToken, refreshToken, profile, done) => {
       image: picture,
       role: "customer",
       userAddress: {},
+      isActive : true,
+      isVerified : true,
+
       userCredentials: {
         username: email.value,
         password: sub,
       },
     });
-    return done(null, profile);
+    
+    return done(null, user);
   }
 };
 
@@ -44,6 +48,7 @@ const googleStrategy = new GoogleStrategy(
     callbackURL: `${process.env.API_URL}/auth/google/callback`,
     scope: ["profile", "email"],
   },
+
   verifyCallback
 );
 

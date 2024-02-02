@@ -87,7 +87,8 @@ const cartByIdHandler = async (req, res) => {
     if (cart) {
       res.status(200).json(cart);
     } else {
-      res.status(404).json({ error: `Cart ${id} was not found.` });
+      // res.status(404).json({ error: `Cart ${id} was not found.` });
+      res.status(200).json([]);
     }
   } catch (error) {
     res.status(400).json({ error: error.message });
@@ -95,9 +96,9 @@ const cartByIdHandler = async (req, res) => {
 };
 
 const deleteCartHandler = async (req, res) => {
-  const { id } = req.params;
+  const { userId } = req.params;
   try {
-    const deletedCart = await deleteCartById(id);
+    const deletedCart = await deleteCartById(userId);
     res.status(200).json(`Cart deleted successfully`);
   } catch (error) {
     res.status(400).json({ error: error.message });

@@ -17,13 +17,13 @@ module.exports = (sequelize) => {
       type: DataTypes.DECIMAL(10, 2),
       allowNull: true,
     },
-    preferenceId: {
+    paymentId: {
       type: DataTypes.STRING,
       allowNull: true,
     },
     cartTotal: {
       type: DataTypes.DECIMAL(10, 2),
-      allowNull: false,
+      allowNull: true,
     },
     shippingAddress: {
       type: DataTypes.STRING,
@@ -45,12 +45,15 @@ module.exports = (sequelize) => {
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    purchaseDate: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
 
     // products: {
     //   type: DataTypes.JSONB,
     //   allowNull: false,
     // },
-
   });
 
   // Define el hook después de la actualización
