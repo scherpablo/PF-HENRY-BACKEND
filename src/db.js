@@ -1,6 +1,7 @@
 require("dotenv").config();
 const isProduction = process.env.NODE_ENV === "production";
-const koyebDb = process.env.KOYEB_DB;
+const supabaseDb = process.env.SUPABASE_DB;
+// const koyebDb = process.env.KOYEB_DB;
 const localDb = process.env.LOCAL_DB;
 
 const { Sequelize } = require("sequelize");
@@ -27,7 +28,7 @@ const BlackListedTokensModel = require ('./models/BlackListedTokens')
 // Inicializacion de la instancia de sequelize
 const OrderProductModel = require("./models/productModels/OrderProduct");
 
-const sequelize = new Sequelize(isProduction ? koyebDb : localDb, {
+const sequelize = new Sequelize(isProduction ? supabaseDb : localDb, {
   dialect: "postgres",
   dialectOptions: {
     ssl: isProduction ? { require: true, rejectUnauthorized: false } : false,
