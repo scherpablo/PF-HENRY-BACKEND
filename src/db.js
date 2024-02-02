@@ -1,4 +1,6 @@
 require("dotenv").config();
+const pg = require('pg');
+
 const isProduction = process.env.NODE_ENV === "production";
 const supabaseDb = process.env.SUPABASE_DB;
 // const koyebDb = process.env.KOYEB_DB;
